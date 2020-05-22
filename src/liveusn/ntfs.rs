@@ -175,7 +175,7 @@ impl UsnJournalData {
 /// Size 56
 #[derive(Debug, Clone)]
 pub struct UsnJournalDataV0 {
-    usn_jounral_id: u64,
+    usn_journal_id: u64,
     first_usn: u64,
     next_usn: u64,
     lowest_valid_usn: u64,
@@ -185,7 +185,7 @@ pub struct UsnJournalDataV0 {
 }
 impl UsnJournalDataV0 {
     fn new(buffer: &[u8]) -> UsnJournalDataV0 {
-        let usn_jounral_id = LittleEndian::read_u64(&buffer[0..8]);
+        let usn_journal_id = LittleEndian::read_u64(&buffer[0..8]);
         let first_usn = LittleEndian::read_u64(&buffer[8..16]);
         let next_usn = LittleEndian::read_u64(&buffer[16..24]);
         let lowest_valid_usn = LittleEndian::read_u64(&buffer[24..32]);
@@ -194,7 +194,7 @@ impl UsnJournalDataV0 {
         let allocation_delta = LittleEndian::read_u64(&buffer[48..56]);
 
         return UsnJournalDataV0 {
-            usn_jounral_id,
+            usn_journal_id,
             first_usn,
             next_usn,
             lowest_valid_usn,
@@ -211,7 +211,7 @@ impl UsnJournalDataV0 {
 /// Size 60
 #[derive(Debug, Clone)]
 pub struct UsnJournalDataV1 {
-    usn_jounral_id: u64,
+    usn_journal_id: u64,
     first_usn: u64,
     next_usn: u64,
     lowest_valid_usn: u64,
@@ -223,7 +223,7 @@ pub struct UsnJournalDataV1 {
 }
 impl UsnJournalDataV1 {
     fn new(buffer: &[u8]) -> UsnJournalDataV1 {
-        let usn_jounral_id = LittleEndian::read_u64(&buffer[0..8]);
+        let usn_journal_id = LittleEndian::read_u64(&buffer[0..8]);
         let first_usn = LittleEndian::read_u64(&buffer[8..16]);
         let next_usn = LittleEndian::read_u64(&buffer[16..24]);
         let lowest_valid_usn = LittleEndian::read_u64(&buffer[24..32]);
@@ -234,7 +234,7 @@ impl UsnJournalDataV1 {
         let max_major_version = LittleEndian::read_u16(&buffer[58..60]);
 
         return UsnJournalDataV1 {
-            usn_jounral_id,
+            usn_journal_id,
             first_usn,
             next_usn,
             lowest_valid_usn,
@@ -253,7 +253,7 @@ impl UsnJournalDataV1 {
 /// Size 80
 #[derive(Debug, Clone)]
 pub struct UsnJournalDataV2 {
-    usn_jounral_id: u64,
+    usn_journal_id: u64,
     first_usn: u64,
     next_usn: u64,
     lowest_valid_usn: u64,
@@ -268,7 +268,7 @@ pub struct UsnJournalDataV2 {
 }
 impl UsnJournalDataV2 {
     fn new(buffer: &[u8]) -> UsnJournalDataV2 {
-        let usn_jounral_id = LittleEndian::read_u64(&buffer[0..8]);
+        let usn_journal_id = LittleEndian::read_u64(&buffer[0..8]);
         let first_usn = LittleEndian::read_u64(&buffer[8..16]);
         let next_usn = LittleEndian::read_u64(&buffer[16..24]);
         let lowest_valid_usn = LittleEndian::read_u64(&buffer[24..32]);
@@ -282,7 +282,7 @@ impl UsnJournalDataV2 {
         let range_track_file_size_threshold = LittleEndian::read_i64(&buffer[72..80]);
 
         return UsnJournalDataV2 {
-            usn_jounral_id,
+            usn_journal_id,
             first_usn,
             next_usn,
             lowest_valid_usn,
@@ -312,7 +312,7 @@ impl ReadUsnJournalData {
                 return ReadUsnJournalData::V0(
                     ReadUsnJournalDataV0::new(
                         journal_data_v0.first_usn,
-                        journal_data_v0.usn_jounral_id
+                        journal_data_v0.usn_journal_id
                     )
                 );
             },
@@ -320,7 +320,7 @@ impl ReadUsnJournalData {
                 return ReadUsnJournalData::V1(
                     ReadUsnJournalDataV1::new(
                         journal_data_v1.first_usn,
-                        journal_data_v1.usn_jounral_id,
+                        journal_data_v1.usn_journal_id,
                         journal_data_v1.min_major_version,
                         journal_data_v1.max_major_version
                     )
@@ -330,7 +330,7 @@ impl ReadUsnJournalData {
                 return ReadUsnJournalData::V1(
                     ReadUsnJournalDataV1::new(
                         journal_data_v2.first_usn,
-                        journal_data_v2.usn_jounral_id,
+                        journal_data_v2.usn_journal_id,
                         journal_data_v2.min_major_version,
                         journal_data_v2.max_major_version
                     )
@@ -416,7 +416,7 @@ pub struct ReadUsnJournalDataV1 {
 }
 impl ReadUsnJournalDataV1 {
     fn new(
-        start_usn: u64, usn_journal_id: u64, 
+        start_usn: u64, usn_journal_id: u64,
         min_major_version: u16, max_major_version: u16
     ) -> ReadUsnJournalDataV1 {
         let reason_mask = 0xffffffff;
