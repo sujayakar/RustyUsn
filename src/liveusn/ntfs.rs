@@ -1,5 +1,7 @@
+use std::mem;
 use serde::Serialize;
 use byteorder::{ByteOrder, LittleEndian};
+use winapi::ctypes::c_void;
 use crate::liveusn::error::UsnLiveError;
 
 
@@ -306,6 +308,19 @@ pub enum ReadUsnJournalData {
     V1(ReadUsnJournalDataV1),
 }
 impl ReadUsnJournalData {
+    pub fn as_raw(&self) -> (*const c_void, usize) {
+        match self {
+            ReadUsnJournalData::V0(ref journal_data) => {
+                let ptr = journal_data as *const _ as *const c_void;
+                (ptr, mem::size_of::<ReadUsnJournalDataV0>())
+            },
+            ReadUsnJournalData::V1(ref journal_data) => {
+                let ptr = journal_data as *const _ as *const c_void;
+                (ptr, mem::size_of::<ReadUsnJournalDataV1>())
+            }
+        }
+    }
+
     pub fn from_usn_journal_data(journal_data: UsnJournalData) -> ReadUsnJournalData {
         match journal_data {
             UsnJournalData::V0(journal_data_v0) => {
