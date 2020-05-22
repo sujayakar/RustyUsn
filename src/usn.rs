@@ -130,7 +130,7 @@ impl <T: ReadSeek> UsnParser <T> {
 
         let mut chunks = self.get_chunk_iterator();
 
-        let records_per_chunk = std::iter::from_fn(move || 
+        let records_per_chunk = std::iter::from_fn(move ||
             {
                 // Allocate some chunks in advance, so they can be parsed in parallel.
                 let mut list_of_chunks = Vec::with_capacity(num_threads);
@@ -147,7 +147,7 @@ impl <T: ReadSeek> UsnParser <T> {
                 } else {
                     #[cfg(feature = "multithreading")]
                     let chunk_iter = list_of_chunks.into_par_iter();
-                    
+
                     #[cfg(not(feature = "multithreading"))]
                     let chunk_iter = list_of_chunks.into_iter();
 
@@ -186,7 +186,7 @@ impl <'c, T: ReadSeek> Iterator for IterFileChunks <'c, T> {
 
             // Get the current offset
             let current_offset = self.chunk_start_offset;
-            
+
             // Seek to where we start our chunk
             match self.parser.inner_handle.seek(
                 SeekFrom::Start(current_offset)
@@ -223,7 +223,7 @@ impl <'c, T: ReadSeek> Iterator for IterFileChunks <'c, T> {
                 }
             );
         }
-        
+
         None
     }
 }
@@ -238,7 +238,7 @@ pub struct IntoIterFileChunks<T: ReadSeek> {
 
 impl<T: ReadSeek> Iterator for IntoIterFileChunks<T> {
     type Item = DataChunk;
-    
+
     fn next(&mut self) -> Option<<Self as Iterator>::Item> {
         while self.chunk_start_offset < self.parser.handle_size {
             // Create buffer for our data chunk
@@ -246,7 +246,7 @@ impl<T: ReadSeek> Iterator for IntoIterFileChunks<T> {
 
             // Get the current offset
             let current_offset = self.chunk_start_offset;
-            
+
             // Seek to where we start our chunk
             match self.parser.inner_handle.seek(
                 SeekFrom::Start(current_offset)
@@ -283,7 +283,7 @@ impl<T: ReadSeek> Iterator for IntoIterFileChunks<T> {
                 }
             );
         }
-        
+
         None
     }
 }
@@ -311,7 +311,7 @@ impl DataChunk {
     pub fn get_record_iterator(self) -> IterRecords {
         IterRecords::new(
             self.source,
-            self.data, 
+            self.data,
             self.offset,
             self.search_size
         )
@@ -393,7 +393,7 @@ impl Iterator for IterRecords {
 
                     // Parse entry
                     let entry = match UsnEntry::new(
-                        entry_meta, 
+                        entry_meta,
                         2,
                         &self.block[start_of_hit as usize ..]
                     ) {
@@ -425,6 +425,7 @@ impl Iterator for IterRecords {
 #[derive(Debug)]
 pub struct IterRecordsByIndex {
     meta: EntryMeta,
+    // FIXME: Let this be borrowed by reference.
     block: Vec<u8>,
     index: usize,
 }
@@ -467,6 +468,7 @@ impl Iterator for IterRecordsByIndex {
                 2 => {
                     // validate minor version
                     if minor != 0 {
+                        // FIXME: we need to increment by record_length here, not 8.
                         debug!("minor version does not match major at offset {}", self.index);
                         self.index += 8;
                         continue;
