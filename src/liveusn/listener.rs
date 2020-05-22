@@ -96,44 +96,45 @@ impl UsnVolumeListener {
                     let mut record_count: u64 = 0;
                     for usn_entry in record_iterator {
                         let entry_usn = usn_entry.record.get_usn();
-                        let file_name = usn_entry.record.get_file_name();
+                        let file_name = usn_entry.record.get_file_name().unwrap_or("").to_owned();
                         let file_ref = usn_entry.record.get_file_reference();
                         let reason_code = usn_entry.record.get_reason_code();
                         let parent_ref = usn_entry.record.get_parent_reference();
-                        let file_attributes = usn_entry.record.get_file_attributes();
 
-                        if file_attributes.contains(flags::FileAttributes::FILE_ATTRIBUTE_DIRECTORY){
-                            if reason_code.contains(flags::Reason::USN_REASON_RENAME_OLD_NAME) {
-                                // We can remove old names from the mapping because we no longer need these.
-                                // On new names, we add the name to the mapping.
-                                mapping.remove_mapping(
-                                    file_ref
-                                );
-                            }
-                            else if reason_code.contains(flags::Reason::USN_REASON_FILE_DELETE) {
-                                // If we are starting from historical entries, we need to add deleted
-                                // entries to the map until we catch up to the current system, then we can 
-                                // start removing deleted entries. This is because our mapping cannot
-                                // get unallocated entries from the MFT via the Windows API.
-                                if self.historical_flag && entry_usn < catch_up_usn {
+                        if let Some(file_attributes) = usn_entry.record.get_file_attributes() {
+                            if file_attributes.contains(flags::FileAttributes::FILE_ATTRIBUTE_DIRECTORY){
+                                if reason_code.contains(flags::Reason::USN_REASON_RENAME_OLD_NAME) {
+                                    // We can remove old names from the mapping because we no longer need these.
+                                    // On new names, we add the name to the mapping.
+                                    mapping.remove_mapping(
+                                        file_ref
+                                    );
+                                }
+                                else if reason_code.contains(flags::Reason::USN_REASON_FILE_DELETE) {
+                                    // If we are starting from historical entries, we need to add deleted
+                                    // entries to the map until we catch up to the current system, then we can 
+                                    // start removing deleted entries. This is because our mapping cannot
+                                    // get unallocated entries from the MFT via the Windows API.
+                                    if self.historical_flag && entry_usn < catch_up_usn {
+                                        mapping.add_mapping(
+                                            file_ref, 
+                                            file_name.clone(), 
+                                            parent_ref
+                                        )
+                                    } else {
+                                        mapping.remove_mapping(
+                                            file_ref
+                                        );
+                                    }
+                                } else if reason_code.contains(flags::Reason::USN_REASON_RENAME_NEW_NAME) ||
+                                    reason_code.contains(flags::Reason::USN_REASON_FILE_CREATE) {
+                                    // If its a new name or creation, we need to updated the mapping
                                     mapping.add_mapping(
                                         file_ref, 
                                         file_name.clone(), 
                                         parent_ref
                                     )
-                                } else {
-                                    mapping.remove_mapping(
-                                        file_ref
-                                    );
                                 }
-                            } else if reason_code.contains(flags::Reason::USN_REASON_RENAME_NEW_NAME) ||
-                                reason_code.contains(flags::Reason::USN_REASON_FILE_CREATE) {
-                                // If its a new name or creation, we need to updated the mapping
-                                mapping.add_mapping(
-                                    file_ref, 
-                                    file_name.clone(), 
-                                    parent_ref
-                                )
                             }
                         }
 

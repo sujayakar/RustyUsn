@@ -105,7 +105,7 @@ fn set_debug_level(matches: &ArgMatches){
         .level(message_level)
         .chain(std::io::stderr())
         .apply();
-    
+
     // Ensure that logger was dispatched
     match result {
         Ok(_) => trace!("Logging as been initialized!"),
@@ -208,7 +208,7 @@ fn process_file(file_location: &str, options: &ArgMatches) {
     if folder_mapping.is_some(){
         // Because we are going to enumerate folder names, we must
         // iterate records from the newest to oldest inorder to correctly
-        // enumerate the paths. This means we must store all the records 
+        // enumerate the paths. This means we must store all the records
         // because they are parsed from oldest to newest. Unfortunately,
         // this does take up more memory.
         let mut mapping = folder_mapping.unwrap();
@@ -225,20 +225,21 @@ fn process_file(file_location: &str, options: &ArgMatches) {
             let record = entry.record;
 
             let reason = record.get_reason_code();
-            let file_attributes = record.get_file_attributes();
             let file_reference = record.get_file_reference();
             let parent_reference = record.get_parent_reference();
-            let file_name = record.get_file_name();
+            let file_name = record.get_file_name().unwrap_or("").to_owned();
 
-            if file_attributes.contains(flags::FileAttributes::FILE_ATTRIBUTE_DIRECTORY){
-                // Add mapping on a delete or rename old
-                if reason.contains(flags::Reason::USN_REASON_FILE_DELETE) ||
-                    reason.contains(flags::Reason::USN_REASON_RENAME_OLD_NAME) {
-                    mapping.add_mapping(
-                        file_reference,
-                        file_name.clone(),
-                        parent_reference
-                    );
+            if let Some(file_attributes) = record.get_file_attributes() {
+                if file_attributes.contains(flags::FileAttributes::FILE_ATTRIBUTE_DIRECTORY){
+                    // Add mapping on a delete or rename old
+                    if reason.contains(flags::Reason::USN_REASON_FILE_DELETE) ||
+                        reason.contains(flags::Reason::USN_REASON_RENAME_OLD_NAME) {
+                        mapping.add_mapping(
+                            file_reference,
+                            file_name.clone(),
+                            parent_reference
+                        );
+                    }
                 }
             }
 

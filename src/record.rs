@@ -69,7 +69,8 @@ impl EntryMeta {
 #[serde(untagged)]
 pub enum UsnRecord {
     V2(UsnRecordV2),
-    V3(UsnRecordV3)
+    V3(UsnRecordV3),
+    V4(UsnRecordV4),
 }
 impl UsnRecord {
     pub fn new<R: Read>(version: u16, mut reader: R)-> Result<UsnRecord, UsnError> {
@@ -85,6 +86,10 @@ impl UsnRecord {
             )?;
             Ok(UsnRecord::V3(usn_record_v3))
         }
+        else if version == 4 {
+            let usn_record_v4 = UsnRecordV4::new(&mut reader)?;
+            Ok(UsnRecord::V4(usn_record_v4))
+        }
         else {
             Err(UsnError::unsupported_usn_version(
                 format!("Unsupported USN version {}", version)
@@ -96,20 +101,23 @@ impl UsnRecord {
         match self {
             UsnRecord::V2(ref record) => record.usn.clone(),
             UsnRecord::V3(ref record) => record.usn.clone(),
+            UsnRecord::V4(ref record) => record.usn.clone(),
         }
     }
 
-    pub fn get_file_name(&self) -> String {
+    pub fn get_file_name(&self) -> Option<&str> {
         match self {
-            UsnRecord::V2(ref record) => record.file_name.clone(),
-            UsnRecord::V3(ref record) => record.file_name.clone(),
+            UsnRecord::V2(ref record) => Some(&record.file_name),
+            UsnRecord::V3(ref record) => Some(&record.file_name),
+            UsnRecord::V4(..) => None,
         }
     }
 
-    pub fn get_file_attributes(&self) -> flags::FileAttributes {
+    pub fn get_file_attributes(&self) -> Option<flags::FileAttributes> {
         match self {
-            UsnRecord::V2(record) => record.file_attributes,
-            UsnRecord::V3(record) => record.file_attributes,
+            UsnRecord::V2(record) => Some(record.file_attributes),
+            UsnRecord::V3(record) => Some(record.file_attributes),
+            UsnRecord::V4(..) => None,
         }
     }
 
@@ -117,6 +125,7 @@ impl UsnRecord {
         match self {
             UsnRecord::V2(record) => record.reason,
             UsnRecord::V3(record) => record.reason,
+            UsnRecord::V4(record) => record.reason,
         }
     }
 
@@ -124,6 +133,7 @@ impl UsnRecord {
         match self {
             UsnRecord::V2(record) => record.file_reference,
             UsnRecord::V3(record) => record.file_reference.as_mft_reference(),
+            UsnRecord::V4(record) => record.file_reference.as_mft_reference(),
         }
     }
 
@@ -131,6 +141,7 @@ impl UsnRecord {
         match self {
             UsnRecord::V2(record) => record.parent_reference,
             UsnRecord::V3(record) => record.parent_reference.as_mft_reference(),
+            UsnRecord::V4(record) => record.parent_reference.as_mft_reference(),
         }
     }
 
@@ -420,5 +431,90 @@ impl UsnRecordV3 {
                 file_name
             }
         )
+    }
+}
+
+#[derive(Serialize, Debug)]
+pub struct UsnRecordCommonHeader {
+    pub record_length: u32,
+    pub major_version: u16,
+    pub minor_version: u16,
+}
+
+#[derive(Serialize, Debug)]
+pub struct UsnRecordExtent {
+    pub offset: i64,
+    pub length: i64,
+}
+
+/// Represents a USN_RECORD_V4 structure
+/// https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_record_v4
+#[derive(Serialize, Debug)]
+pub struct UsnRecordV4 {
+    pub header: UsnRecordCommonHeader,
+    pub file_reference: Ntfs128Reference,
+    pub parent_reference: Ntfs128Reference,
+    pub usn: u64,
+    pub reason: flags::Reason,
+    pub source_info: flags::SourceInfo,
+    pub remaining_extents: u32,
+    pub extents: Vec<UsnRecordExtent>,
+}
+
+impl UsnRecordV4 {
+    pub fn new<T: Read>(mut buffer: T) -> Result<Self, UsnError> {
+        // FIXME: We don't use this correctly to advance to the next record.
+        let record_length = buffer.read_u32::<LittleEndian>()?;
+
+        // FIXME: Compute the record length upper bound correctly.
+        // https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_record_v2
+        if record_length == 0 || record_length > 1024 {
+            return Err(UsnError::invalid_record(format!("Invalid length: {}", record_length)));
+        }
+        let major_version = buffer.read_u16::<LittleEndian>()?;
+        if major_version != 4 {
+            return Err(UsnError::invalid_record(format!("Unexpected version: {}", major_version)));
+        }
+        // Per https://docs.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-usn_record_v4#remarks,
+        // having a higher minor version number allows for new fields before the variable length filename,
+        // but existing fields remain valid.
+        // FIXME: Add a lower bound to the minor version.
+        let minor_version = buffer.read_u16::<LittleEndian>()?;
+
+        // NB: FILE_ID_128 is defined as `BYTE Identifier[16]` and does not have 128-bit alignment.
+        let file_reference = Ntfs128Reference(buffer.read_u128::<LittleEndian>()?);
+        let parent_reference = Ntfs128Reference(buffer.read_u128::<LittleEndian>()?);
+
+        let usn = buffer.read_u64::<LittleEndian>()?;
+
+        let reason = flags::Reason::from_bits_truncate(buffer.read_u32::<LittleEndian>()?);
+        let source_info = flags::SourceInfo::from_bits_truncate(buffer.read_u32::<LittleEndian>()?);
+
+        let remaining_extents = buffer.read_u32::<LittleEndian>()?;
+        let number_of_extents = buffer.read_u16::<LittleEndian>()?;
+        let extent_size = buffer.read_u16::<LittleEndian>()?;
+        assert_eq!(extent_size, 16, "FIXME: Forwards compatibility");
+
+        let mut extents = Vec::with_capacity(number_of_extents as usize);
+        for _ in 0..number_of_extents {
+            let offset = buffer.read_i64::<LittleEndian>()?;
+            let length = buffer.read_i64::<LittleEndian>()?;
+            extents.push(UsnRecordExtent { offset, length });
+        }
+
+        Ok(UsnRecordV4 {
+            header: UsnRecordCommonHeader {
+                record_length,
+                major_version,
+                minor_version,
+            },
+            file_reference,
+            parent_reference,
+            usn,
+            reason,
+            source_info,
+            remaining_extents,
+            extents,
+        })
     }
 }
