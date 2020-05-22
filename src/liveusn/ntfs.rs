@@ -339,6 +339,19 @@ impl ReadUsnJournalData {
         }
     }
 
+    pub fn with_start_usn(mut self, start_usn: u64) -> Self {
+        match self {
+            ReadUsnJournalData::V0(ref mut read_data_v0) => {
+                read_data_v0.start_usn = start_usn
+            },
+            ReadUsnJournalData::V1(ref mut read_data_v1) => {
+                read_data_v1.start_usn = start_usn
+            }
+        }
+
+        self
+    }
+
     pub fn with_reason_mask(mut self, reason_mask: u32) -> Self {
         match self {
             ReadUsnJournalData::V0(ref mut read_data_v0) => {
@@ -352,16 +365,43 @@ impl ReadUsnJournalData {
         self
     }
 
-    pub fn with_start_usn(mut self, start_usn: u64) -> Self {
+    /// Set this value to only receive a notification when the final handle to a changed
+    // file or directory is closed. Modifications to the file while a handle is still open
+    // will be deferred until this close. Be sure to also include USN_REASON_CLOSE in the
+    // reason mask.
+    pub fn with_return_only_on_close(mut self, return_only_on_close: bool) -> Self {
         match self {
             ReadUsnJournalData::V0(ref mut read_data_v0) => {
-                read_data_v0.start_usn = start_usn
+                read_data_v0.return_only_on_close = return_only_on_close as u32;
             },
             ReadUsnJournalData::V1(ref mut read_data_v1) => {
-                read_data_v1.start_usn = start_usn
-            }
+                read_data_v1.return_only_on_close = return_only_on_close as u32;
+            },
         }
+        self
+    }
 
+    pub fn with_timeout_secs(mut self, timeout: u64) -> Self {
+        match self {
+            ReadUsnJournalData::V0(ref mut read_data_v0) => {
+                read_data_v0.timeout = timeout;
+            },
+            ReadUsnJournalData::V1(ref mut read_data_v1) => {
+                read_data_v1.timeout = timeout;
+            },
+        }
+        self
+    }
+
+    pub fn with_bytes_to_wait_for(mut self, bytes: u64) -> Self {
+        match self {
+            ReadUsnJournalData::V0(ref mut read_data_v0) => {
+                read_data_v0.bytes_to_wait_for = bytes;
+            },
+            ReadUsnJournalData::V1(ref mut read_data_v1) => {
+                read_data_v1.bytes_to_wait_for = bytes;
+            },
+        }
         self
     }
 }
