@@ -373,12 +373,12 @@ impl ReadUsnJournalData {
 #[derive(Debug, Clone)]
 #[repr(C)]
 pub struct ReadUsnJournalDataV0 {
-    start_usn: u64,
-    reason_mask: u32,
-    return_only_on_close: u32,
-    timeout: u64,
-    bytes_to_wait_for: u64,
-    usn_journal_id: u64,
+    pub start_usn: u64,
+    pub reason_mask: u32,
+    pub return_only_on_close: u32,
+    pub timeout: u64,
+    pub bytes_to_wait_for: u64,
+    pub usn_journal_id: u64,
 }
 impl ReadUsnJournalDataV0 {
     fn new(start_usn: u64, usn_journal_id: u64) -> ReadUsnJournalDataV0 {
@@ -405,14 +405,14 @@ impl ReadUsnJournalDataV0 {
 #[derive(Debug, Clone)]
 #[repr(C)]
 pub struct ReadUsnJournalDataV1 {
-    start_usn: u64,
-    reason_mask: u32,
-    return_only_on_close: u32,
-    timeout: u64,
-    bytes_to_wait_for: u64,
-    usn_journal_id: u64,
-    min_major_version: u16,
-    max_major_version: u16,
+    pub start_usn: u64,
+    pub reason_mask: u32,
+    pub return_only_on_close: u32,
+    pub timeout: u64,
+    pub bytes_to_wait_for: u64,
+    pub usn_journal_id: u64,
+    pub min_major_version: u16,
+    pub max_major_version: u16,
 }
 impl ReadUsnJournalDataV1 {
     fn new(
